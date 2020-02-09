@@ -22,6 +22,8 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		2E3484B7230607D700B11C92 /* SpikeClient.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2E3484B5230607D700B11C92 /* SpikeClient.framework */; };
+		2E3484B8230607D700B11C92 /* SpikeClientUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2E3484B6230607D700B11C92 /* SpikeClientUI.framework */; };
 		3804343D23747354004BAB52 /* Microbolus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3804343C23747354004BAB52 /* Microbolus.swift */; };
 		3804343E237474AE004BAB52 /* Microbolus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3804343C23747354004BAB52 /* Microbolus.swift */; };
 		3809602323AA759600F98EE6 /* Settings.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 3809602223AA759600F98EE6 /* Settings.bundle */; };
@@ -581,6 +583,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		2E3484B5230607D700B11C92 /* SpikeClient.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SpikeClient.framework; path = Carthage/Build/iOS/SpikeClient.framework; sourceTree = "<group>"; };
+		2E3484B6230607D700B11C92 /* SpikeClientUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SpikeClientUI.framework; path = Carthage/Build/iOS/SpikeClientUI.framework; sourceTree = "<group>"; };
 		3804343C23747354004BAB52 /* Microbolus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Microbolus.swift; sourceTree = "<group>"; };
 		3809602223AA759600F98EE6 /* Settings.bundle */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.plug-in"; path = Settings.bundle; sourceTree = "<group>"; };
 		38589861235E0A4200919FD4 /* NightscoutAPIClient.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = NightscoutAPIClient.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1046,6 +1050,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2E3484B7230607D700B11C92 /* SpikeClient.framework in Frameworks */,
+				2E3484B8230607D700B11C92 /* SpikeClientUI.framework in Frameworks */,
 				434FB6461D68F1CD007B9C70 /* Amplitude.framework in Frameworks */,
 				43A8EC6F210E622700A81379 /* CGMBLEKitUI.framework in Frameworks */,
 				438A95A81D8B9B24009D12E1 /* CGMBLEKit.framework in Frameworks */,
@@ -1798,6 +1804,8 @@
 		968DCD53F724DE56FFE51920 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				2E3484B5230607D700B11C92 /* SpikeClient.framework */,
+				2E3484B6230607D700B11C92 /* SpikeClientUI.framework */,
 				38589864235E0A4C00919FD4 /* NightscoutAPIClientUI.framework */,
 				38589861235E0A4200919FD4 /* NightscoutAPIClient.framework */,
 				434FB6451D68F1CD007B9C70 /* Amplitude.framework */,
@@ -2426,6 +2434,8 @@
 				"$(BUILT_PRODUCTS_DIR)/MKRingProgressView.framework/MKRingProgressView",
 				"$(BUILT_PRODUCTS_DIR)/NightscoutAPIClient.framework/NightscoutAPIClient",
 				"$(BUILT_PRODUCTS_DIR)/NightscoutAPIClientUI.framework/NightscoutAPIClientUI",
+				"$(BUILT_PRODUCTS_DIR)/SpikeClient.framework/SpikeClient",
+				"$(BUILT_PRODUCTS_DIR)/SpikeClientUI.framework/SpikeClientUI",
 			);
 			name = "Copy Frameworks with Carthage";
 			outputPaths = (
@@ -2446,6 +2456,8 @@
 				"$(BUILT_PRODUCTS_DIR)/$(FRAMEWORKS_FOLDER_PATH)/MKRingProgressView.framework",
 				"$(BUILT_PRODUCTS_DIR)/$(FRAMEWORKS_FOLDER_PATH)/NightscoutAPIClient.framework",
 				"$(BUILT_PRODUCTS_DIR)/$(FRAMEWORKS_FOLDER_PATH)/NightscoutAPIClientUI.framework",
+				"$(BUILT_PRODUCTS_DIR)/$(FRAMEWORKS_FOLDER_PATH)/SpikeClient.framework",
+				"$(BUILT_PRODUCTS_DIR)/$(FRAMEWORKS_FOLDER_PATH)/SpikeClientUI.framework",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
