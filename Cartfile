@@ -1,5 +1,5 @@
 github "LoopKit/LoopKit" "dev"
-github "LoopKit/CGMBLEKit" "dev"
+github "kdisimone/CGMBLEKit" "dev-uploadtoNS"
 github "i-schuetz/SwiftCharts" == 0.6.5
 github "LoopKit/dexcom-share-client-swift" ~> 1.2
 github "LoopKit/G4ShareSpy" ~> 1.1
