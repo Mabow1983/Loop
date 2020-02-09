@@ -11,7 +11,7 @@ import HealthKit
 import LoopKit
 
 
-final class WatchContext: NSObject, RawRepresentable {
+final class WatchContext: RawRepresentable {
     typealias RawValue = [String: Any]
 
     private let version = 4
@@ -31,12 +31,7 @@ final class WatchContext: NSObject, RawRepresentable {
     var lastNetTempBasalDose: Double?
     var lastNetTempBasalDate: Date?
     var recommendedBolusDose: Double?
-
-    var bolusSuggestion: BolusSuggestionUserInfo? {
-        guard let recommended = recommendedBolusDose else { return nil }
-
-        return BolusSuggestionUserInfo(recommendedBolus: recommended)
-    }
+    var doNotOpenBolusScreenWithMicroboluses: Bool?
 
     var cob: Double?
     var iob: Double?
@@ -46,13 +41,10 @@ final class WatchContext: NSObject, RawRepresentable {
 
     var cgmManagerState: CGMManager.RawStateValue?
 
-    override init() {
-        super.init()
+    init() {
     }
 
     required init?(rawValue: RawValue) {
-        super.init()
-
         guard rawValue["v"] as? Int == version else {
             return nil
         }
@@ -77,6 +69,7 @@ final class WatchContext: NSObject, RawRepresentable {
         lastNetTempBasalDate = rawValue["bad"] as? Date
         recommendedBolusDose = rawValue["rbo"] as? Double
         cob = rawValue["cob"] as? Double
+        doNotOpenBolusScreenWithMicroboluses = rawValue["mb"] as? Bool
 
         cgmManagerState = rawValue["cgmManagerState"] as? CGMManager.RawStateValue
 
@@ -109,6 +102,7 @@ final class WatchContext: NSObject, RawRepresentable {
         raw["r"] = reservoir
         raw["rbo"] = recommendedBolusDose
         raw["rp"] = reservoirPercentage
+        raw["mb"] = doNotOpenBolusScreenWithMicroboluses
 
         raw["pg"] = predictedGlucose?.rawValue
 
