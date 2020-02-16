@@ -88,7 +88,7 @@ class PredictionTableViewController: ChartsTableViewController, IdentifiableClas
     let glucoseChart = PredictedGlucoseChart()
 
     override func createChartsManager() -> ChartsManager {
-        return ChartsManager(colors: .default, settings: .default, charts: [glucoseChart])
+        return ChartsManager(colors: .default, settings: .default, charts: [glucoseChart], traitCollection: traitCollection)
     }
 
     override func glucoseUnitDidChange() {
@@ -123,10 +123,10 @@ class PredictionTableViewController: ChartsTableViewController, IdentifiableClas
         self.deviceManager.loopManager.getLoopState { (manager, state) in
             self.retrospectiveGlucoseDiscrepancies = state.retrospectiveGlucoseDiscrepancies
             totalRetrospectiveCorrection = state.totalRetrospectiveCorrection
-            self.glucoseChart.setPredictedGlucoseValues(state.predictedGlucose ?? [])
+            self.glucoseChart.setPredictedGlucoseValues(state.predictedGlucoseIncludingPendingInsulin ?? [])
 
             do {
-                let glucose = try state.predictGlucose(using: self.selectedInputs)
+                let glucose = try state.predictGlucose(using: self.selectedInputs, includingPendingInsulin: true)
                 self.glucoseChart.setAlternatePredictedGlucoseValues(glucose)
             } catch {
                 self.refreshContext.update(with: .status)

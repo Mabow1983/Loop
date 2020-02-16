@@ -12,12 +12,15 @@ import LoopKitUI
 import LoopCore
 import LoopTestingKit
 import UserNotifications
+import Foundation
 
 final class DeviceDataManager {
 
     private let queue = DispatchQueue(label: "com.loopkit.DeviceManagerQueue", qos: .utility)
 
     private let log = DiagnosticLogger.shared.forCategory("DeviceManager")
+    
+    private var lastGlucose:NewGlucoseSample?
 
     /// Remember the launch date of the app for diagnostic reporting
     private let launchDate = Date()
@@ -33,7 +36,7 @@ final class DeviceDataManager {
     /// Should be accessed only on the main queue
     private(set) var lastError: (date: Date, error: Error)?
 
-    /// The last time a BLE heartbeat was received by the pump manager
+    /// The last time a BLE heartbeat was received and acted upon.
     private var lastBLEDrivenUpdate = Date.distantPast
 
     // MARK: - CGM
@@ -120,6 +123,7 @@ final class DeviceDataManager {
 
         setupPump()
         setupCGM()
+        onIdleSpikeUpdate();
     }
 
     var isCGMManagerValidPumpManager: Bool {
@@ -155,6 +159,40 @@ final class DeviceDataManager {
 
         return Manager.init(rawState: rawState) as? PumpManagerUI
     }
+    
+    private func processCGMResult(_ manager: CGMManager, result: CGMResult) {
+        switch result {
+        case .newData(let values):
+            log.default("CGMManager:\(type(of: manager)) did update with \(values.count) values")
+                        
+            loopManager.addGlucose(values) { result in
+                if manager.shouldSyncToRemoteService {
+                    switch result {
+                    case .success(let values):
+                        self.nightscoutDataManager.uploadGlucose(values, sensorState: manager.sensorState, fromDevice: manager.device)
+                    case .failure:
+                        break
+                    }
+                }
+                
+                self.log.default("Asserting current pump data")
+                self.pumpManager?.assertCurrentPumpData()
+            }
+        case .noData:
+            log.default("CGMManager:\(type(of: manager)) did update with no data")
+            
+            pumpManager?.assertCurrentPumpData()
+        case .error(let error):
+            log.default("CGMManager:\(type(of: manager)) did update with error: \(error)")
+            
+            self.setLastError(error: error)
+            log.default("Asserting current pump data")
+            pumpManager?.assertCurrentPumpData()
+        }
+        
+        updatePumpManagerBLEHeartbeatPreference()
+    }
+
 
 }
 
@@ -269,36 +307,8 @@ extension DeviceDataManager: CGMManagerDelegate {
 
     func cgmManager(_ manager: CGMManager, didUpdateWith result: CGMResult) {
         dispatchPrecondition(condition: .onQueue(queue))
-        switch result {
-        case .newData(let values):
-            log.default("CGMManager:\(type(of: manager)) did update with \(values.count) values")
-
-            loopManager.addGlucose(values) { result in
-                if manager.shouldSyncToRemoteService {
-                    switch result {
-                    case .success(let values):
-                        self.nightscoutDataManager.uploadGlucose(values, sensorState: manager.sensorState)
-                    case .failure:
-                        break
-                    }
-                }
-
-                self.log.default("Asserting current pump data")
-                self.pumpManager?.assertCurrentPumpData()
-            }
-        case .noData:
-            log.default("CGMManager:\(type(of: manager)) did update with no data")
-
-            pumpManager?.assertCurrentPumpData()
-        case .error(let error):
-            log.default("CGMManager:\(type(of: manager)) did update with error: \(error)")
-
-            self.setLastError(error: error)
-            log.default("Asserting current pump data")
-            pumpManager?.assertCurrentPumpData()
-        }
-
-        updatePumpManagerBLEHeartbeatPreference()
+        lastBLEDrivenUpdate = Date()
+        processCGMResult(manager, result: result);
     }
 
     func startDateToFilterNewData(for manager: CGMManager) -> Date? {
@@ -346,12 +356,12 @@ extension DeviceDataManager: PumpManagerDelegate {
             bleHeartbeatUpdateInterval = .minutes(1)
         case let interval?:
             // If we looped successfully less than 5 minutes ago, ignore the heartbeat.
-            log.default("PumpManager:\(type(of: pumpManager)) ignoring heartbeat. Last loop completed \(interval.minutes) minutes ago")
+            log.default("PumpManager:\(type(of: pumpManager)) ignoring pumpManager heartbeat. Last loop completed \(-interval.minutes) minutes ago")
             return
         }
 
         guard lastBLEDrivenUpdate.timeIntervalSinceNow <= -bleHeartbeatUpdateInterval else {
-            log.default("PumpManager:\(type(of: pumpManager)) ignoring heartbeat. Last update \(lastBLEDrivenUpdate)")
+            log.default("PumpManager:\(type(of: pumpManager)) ignoring pumpManager heartbeat. Last ble update \(lastBLEDrivenUpdate)")
             return
         }
         lastBLEDrivenUpdate = Date()
@@ -363,7 +373,7 @@ extension DeviceDataManager: PumpManagerDelegate {
 
             if let manager = self.cgmManager {
                 self.queue.async {
-                    self.cgmManager(manager, didUpdateWith: result)
+                    self.processCGMResult(manager, result: result)
                 }
             }
         }
@@ -499,6 +509,56 @@ extension DeviceDataManager: PumpManagerDelegate {
         dispatchPrecondition(condition: .onQueue(queue))
         return loopManager.doseStore.pumpEventQueryAfterDate
     }
+    
+    @objc func onIdleSpikeUpdate() {
+        log.default("PumpManager:\(type(of: pumpManager)) idle spike update")
+        
+        lastBLEDrivenUpdate = Date()
+        
+        self.cgmManager?.fetchNewDataIfNeeded { (result) in
+            
+            if case .newData(let glucoseList) = result {
+                AnalyticsManager.shared.didFetchNewCGMData()
+                self.lastGlucose = glucoseList.first
+            } else if (self.lastGlucose == nil) {
+                self.lastGlucose = self.cgmManager?.sensorState as? NewGlucoseSample
+            }
+            
+            if let manager = self.cgmManager {
+                self.queue.async {
+                    self.cgmManager(manager, didUpdateWith: result)
+                }
+                self.queue.async {
+                    self.setNextTimer()
+                }
+            }
+        }
+        
+        
+    }
+    
+    func setNextTimer() {
+        dispatchPrecondition(condition: .onQueue(queue))
+        var intervalToNextUpdate = TimeInterval(minutes: 1.0)
+        var dateFromLastUpdate = self.lastGlucose?.date
+        if (dateFromLastUpdate != nil) {
+            self.log.default("Last spike update \(dateFromLastUpdate!.timeIntervalSinceNow.minutes) minutes ago")
+            dateFromLastUpdate = dateFromLastUpdate!.addingTimeInterval(TimeInterval(minutes: 5.25))
+            intervalToNextUpdate = dateFromLastUpdate!.timeIntervalSinceNow
+            self.log.default("Next spike update in \((intervalToNextUpdate/60).rounded(.towardZero)) minutes and \(intervalToNextUpdate.truncatingRemainder(dividingBy: 60.0)) seconds")
+        }
+        if (intervalToNextUpdate < 0) {
+            if (intervalToNextUpdate < .minutes(-5)) {
+                intervalToNextUpdate = TimeInterval(minutes:5.0)
+            } else {
+                intervalToNextUpdate = TimeInterval(minutes:1.0)
+            }
+        }
+        DispatchQueue.main.async {
+            // timer needs a runloop?
+            Timer.scheduledTimer(timeInterval: intervalToNextUpdate, target: self, selector: #selector(self.onIdleSpikeUpdate), userInfo: nil, repeats: false)
+        }
+    }
 }
 
 // MARK: - DoseStoreDelegate
@@ -620,6 +680,11 @@ extension DeviceDataManager: CustomDebugStringConvertible {
     var debugDescription: String {
         return [
             Bundle.main.localizedNameAndVersion,
+            "* gitRevision: \(Bundle.main.gitRevision ?? "N/A")",
+            "* gitBranch: \(Bundle.main.gitBranch ?? "N/A")",
+            "* sourceRoot: \(Bundle.main.sourceRoot ?? "N/A")",
+            "* buildDateString: \(Bundle.main.buildDateString ?? "N/A")",
+            "* xcodeVersion: \(Bundle.main.xcodeVersion ?? "N/A")",
             "",
             "## DeviceDataManager",
             "* launchDate: \(launchDate)",
@@ -642,3 +707,21 @@ extension Notification.Name {
     static let PumpEventsAdded = Notification.Name(rawValue:  "com.loopKit.notification.PumpEventsAdded")
 }
 
+// MARK: - Remote Notification Handling
+extension DeviceDataManager {
+    func handleRemoteNotification(_ notification: [String: AnyObject]) {
+        
+        if let command = RemoteCommand(notification: notification, allowedPresets: loopManager.settings.overridePresets) {
+            switch command {
+            case .temporaryScheduleOverride(let override):
+                log.default("Enacting remote temporary override: \(override)")
+                loopManager.settings.scheduleOverride = override
+            case .cancelTemporaryOverride:
+                log.default("Canceling temporary override from remote command")
+                loopManager.settings.scheduleOverride = nil
+            }
+        } else {
+            log.info("Unhandled remote notification: \(notification)")
+        }
+    }
+}

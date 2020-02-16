@@ -24,7 +24,7 @@ class StatusChartsManager: ChartsManager {
     let dose: DoseChart
     let cob: COBChart
 
-    init(colors: ChartColorPalette, settings: ChartSettings) {
+    init(colors: ChartColorPalette, settings: ChartSettings, traitCollection: UITraitCollection) {
         let glucose = PredictedGlucoseChart()
         let iob = IOBChart()
         let dose = DoseChart()
@@ -45,7 +45,7 @@ class StatusChartsManager: ChartsManager {
             case .cob:
                 return cob
             }
-        }))
+        }), traitCollection: traitCollection)
     }
 }
 
@@ -104,7 +104,7 @@ extension StatusChartsManager {
 
 extension StatusChartsManager {
     func setDoseEntries(_ doseEntries: [DoseEntry]) {
-        dose.setDoseEntries(doseEntries)
+        dose.doseEntries = doseEntries
         invalidateChart(atIndex: ChartIndex.dose.rawValue)
     }
 
